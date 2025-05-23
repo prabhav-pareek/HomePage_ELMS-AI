@@ -1,0 +1,729 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Advanced Flexbox Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/interactjs/dist/interact.min.js"></script>
+    <style>
+        .dashboard {
+            min-height: 100vh;
+            transition: background-color 0.3s, color 0.3s;
+        }
+        .box {
+            position: absolute;
+            transition: box-shadow 0.2s, transform 0.2s, z-index 0.2s;
+            min-height: 150px;
+            min-width: 200px;
+            overflow: hidden;
+            z-index: 1;
+        }
+        .box:hover {
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+            transform: translateY(-2px);
+        }
+        .box.active {
+            z-index: 10;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+        }
+        .box-handle {
+            cursor: move;
+        }
+        .resize-handle {
+            position: absolute;
+            width: 10px;
+            height: 10px;
+            background: rgba(0, 0, 0, 0.1);
+            border-radius: 50%;
+            opacity: 0;
+            transition: opacity 0.2s;
+        }
+        .resize-handle-tl {
+            top: -5px;
+            left: -5px;
+            cursor: nwse-resize;
+        }
+        .resize-handle-tr {
+            top: -5px;
+            right: -5px;
+            cursor: nesw-resize;
+        }
+        .resize-handle-bl {
+            bottom: -5px;
+            left: -5px;
+            cursor: nesw-resize;
+        }
+        .resize-handle-br {
+            bottom: -5px;
+            right: -5px;
+            cursor: nwse-resize;
+        }
+        .resize-handle-t {
+            top: -5px;
+            left: 50%;
+            transform: translateX(-50%);
+            cursor: ns-resize;
+        }
+        .resize-handle-r {
+            right: -5px;
+            top: 50%;
+            transform: translateY(-50%);
+            cursor: ew-resize;
+        }
+        .resize-handle-b {
+            bottom: -5px;
+            left: 50%;
+            transform: translateX(-50%);
+            cursor: ns-resize;
+        }
+        .resize-handle-l {
+            left: -5px;
+            top: 50%;
+            transform: translateY(-50%);
+            cursor: ew-resize;
+        }
+        .box:hover .resize-handle {
+            opacity: 1;
+        }
+        .color-picker {
+            width: 25px;
+            height: 25px;
+            border-radius: 50%;
+            cursor: pointer;
+            border: 2px solid white;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+        }
+        .theme-customization {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.3s ease-out;
+        }
+        .theme-customization.active {
+            max-height: 300px;
+            transition: max-height 0.5s ease-in;
+        }
+        .box-content {
+            height: calc(100% - 40px);
+            overflow-y: auto;
+        }
+        /* Custom scrollbar */
+        .box-content::-webkit-scrollbar {
+            width: 6px;
+        }
+        .box-content::-webkit-scrollbar-track {
+            background: rgba(0, 0, 0, 0.1);
+            border-radius: 10px;
+        }
+        .box-content::-webkit-scrollbar-thumb {
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 10px;
+        }
+        .dark .box-content::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.2);
+        }
+        .context-menu {
+            position: absolute;
+            background: white;
+            border-radius: 6px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+            z-index: 100;
+            min-width: 150px;
+            display: none;
+        }
+        .dark .context-menu {
+            background: #374151;
+        }
+        .context-menu-item {
+            padding: 8px 12px;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        .context-menu-item:hover {
+            background: rgba(0,0,0,0.1);
+        }
+        .dark .context-menu-item:hover {
+            background: rgba(255,255,255,0.1);
+        }
+        .box-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.5);
+            z-index: 5;
+            display: none;
+        }
+        .box-overlay.active {
+            display: block;
+        }
+    </style>
+</head>
+<body class="dashboard bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200">
+    <div class="container mx-auto px-4 py-8">
+        <!-- Header with theme controls -->
+        <header class="flex justify-between items-center mb-8">
+            <h1 class="text-3xl font-bold">Flexbox Dashboard</h1>
+            <div class="flex items-center space-x-4">
+                <div class="relative">
+                    <button id="theme-toggle" class="p-2 rounded-full bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600">
+                        <i class="fas fa-moon dark:hidden"></i>
+                        <i class="fas fa-sun hidden dark:inline"></i>
+                    </button>
+                    <button id="customize-toggle" class="ml-2 p-2 rounded-full bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600">
+                        <i class="fas fa-palette"></i>
+                    </button>
+                </div>
+            </div>
+        </header>
+
+        <!-- Theme customization panel -->
+        <div id="theme-customization" class="theme-customization mb-6 bg-white dark:bg-gray-800 rounded-lg shadow-md p-4">
+            <h3 class="font-semibold mb-3">Customize Theme</h3>
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div>
+                    <label class="block text-sm mb-1">Background</label>
+                    <input type="color" id="bg-color" value="#f3f4f6" class="color-picker">
+                </div>
+                <div>
+                    <label class="block text-sm mb-1">Text</label>
+                    <input type="color" id="text-color" value="#111827" class="color-picker">
+                </div>
+                <div>
+                    <label class="block text-sm mb-1">Primary</label>
+                    <input type="color" id="primary-color" value="#3b82f6" class="color-picker">
+                </div>
+                <div>
+                    <label class="block text-sm mb-1">Secondary</label>
+                    <input type="color" id="secondary-color" value="#10b981" class="color-picker">
+                </div>
+            </div>
+            <div class="mt-4 flex justify-end">
+                <button id="apply-theme" class="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600">Apply</button>
+                <button id="reset-theme" class="ml-2 px-4 py-2 bg-gray-300 dark:bg-gray-600 rounded hover:bg-gray-400 dark:hover:bg-gray-500">Reset</button>
+            </div>
+        </div>
+
+        <!-- Dashboard controls -->
+        <div class="flex justify-between items-center mb-6">
+            <div class="flex space-x-2">
+                <button id="add-text-box" class="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 flex items-center">
+                    <i class="fas fa-font mr-2"></i> Add Text Box
+                </button>
+                <button id="add-list-box" class="px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600 flex items-center">
+                    <i class="fas fa-list mr-2"></i> Add List Box
+                </button>
+                <button id="add-image-box" class="px-4 py-2 bg-purple-500 text-white rounded hover:bg-purple-600 flex items-center">
+                    <i class="fas fa-image mr-2"></i> Add Image Box
+                </button>
+            </div>
+            <div>
+                <button id="clear-all" class="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600">
+                    <i class="fas fa-trash mr-2"></i> Clear All
+                </button>
+            </div>
+        </div>
+
+        <!-- Main dashboard area -->
+        <div id="dashboard-area" class="min-h-screen border-2 border-dashed border-gray-300 dark:border-gray-700 rounded-lg p-4 relative">
+            <!-- Boxes will be added here -->
+        </div>
+
+        <!-- Context Menu -->
+        <div id="context-menu" class="context-menu">
+            <div class="context-menu-item" id="bring-to-front">
+                <i class="fas fa-layer-group mr-2"></i> Bring to Front
+            </div>
+            <div class="context-menu-item" id="send-to-back">
+                <i class="fas fa-layer-group mr-2"></i> Send to Back
+            </div>
+            <div class="context-menu-item" id="make-overlay">
+                <i class="fas fa-clone mr-2"></i> Toggle Overlay
+            </div>
+            <div class="context-menu-item" id="duplicate-box">
+                <i class="fas fa-copy mr-2"></i> Duplicate
+            </div>
+            <div class="context-menu-item" id="delete-box-context">
+                <i class="fas fa-trash mr-2 text-red-500"></i> Delete
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Theme toggle
+            const themeToggle = document.getElementById('theme-toggle');
+            const customizeToggle = document.getElementById('customize-toggle');
+            const themeCustomization = document.getElementById('theme-customization');
+            const applyTheme = document.getElementById('apply-theme');
+            const resetTheme = document.getElementById('reset-theme');
+            const dashboardArea = document.getElementById('dashboard-area');
+            const addTextBox = document.getElementById('add-text-box');
+            const addListBox = document.getElementById('add-list-box');
+            const addImageBox = document.getElementById('add-image-box');
+            const clearAll = document.getElementById('clear-all');
+            const contextMenu = document.getElementById('context-menu');
+            
+            let boxCount = 0;
+            let isDarkMode = false;
+            let customTheme = {
+                bgColor: '#f3f4f6',
+                textColor: '#111827',
+                primaryColor: '#3b82f6',
+                secondaryColor: '#10b981'
+            };
+            let currentContextBox = null;
+
+            // Check for saved theme preference
+            if (localStorage.getItem('darkMode') === 'true') {
+                document.documentElement.classList.add('dark');
+                isDarkMode = true;
+            }
+
+            // Check for custom theme
+            if (localStorage.getItem('customTheme')) {
+                customTheme = JSON.parse(localStorage.getItem('customTheme'));
+                applyCustomTheme();
+            }
+
+            // Theme toggle
+            themeToggle.addEventListener('click', () => {
+                isDarkMode = !isDarkMode;
+                if (isDarkMode) {
+                    document.documentElement.classList.add('dark');
+                } else {
+                    document.documentElement.classList.remove('dark');
+                }
+                localStorage.setItem('darkMode', isDarkMode);
+            });
+
+            // Customize toggle
+            customizeToggle.addEventListener('click', () => {
+                themeCustomization.classList.toggle('active');
+            });
+
+            // Apply custom theme
+            applyTheme.addEventListener('click', () => {
+                customTheme = {
+                    bgColor: document.getElementById('bg-color').value,
+                    textColor: document.getElementById('text-color').value,
+                    primaryColor: document.getElementById('primary-color').value,
+                    secondaryColor: document.getElementById('secondary-color').value
+                };
+                localStorage.setItem('customTheme', JSON.stringify(customTheme));
+                applyCustomTheme();
+            });
+
+            // Reset theme
+            resetTheme.addEventListener('click', () => {
+                localStorage.removeItem('customTheme');
+                customTheme = {
+                    bgColor: '#f3f4f6',
+                    textColor: '#111827',
+                    primaryColor: '#3b82f6',
+                    secondaryColor: '#10b981'
+                };
+                document.getElementById('bg-color').value = customTheme.bgColor;
+                document.getElementById('text-color').value = customTheme.textColor;
+                document.getElementById('primary-color').value = customTheme.primaryColor;
+                document.getElementById('secondary-color').value = customTheme.secondaryColor;
+                document.documentElement.style.setProperty('--color-bg', '');
+                document.documentElement.style.setProperty('--color-text', '');
+                document.documentElement.style.setProperty('--color-primary', '');
+                document.documentElement.style.setProperty('--color-secondary', '');
+            });
+
+            function applyCustomTheme() {
+                document.documentElement.style.setProperty('--color-bg', customTheme.bgColor);
+                document.documentElement.style.setProperty('--color-text', customTheme.textColor);
+                document.documentElement.style.setProperty('--color-primary', customTheme.primaryColor);
+                document.documentElement.style.setProperty('--color-secondary', customTheme.secondaryColor);
+            }
+
+            // Add text box
+            addTextBox.addEventListener('click', () => {
+                boxCount++;
+                const boxId = `box-${boxCount}`;
+                const box = createBox(boxId, 'Text Box', `
+                    <textarea class="w-full h-full p-2 bg-transparent border border-gray-300 dark:border-gray-600 rounded resize-none focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Type your text here..."></textarea>
+                `, '300px', '200px');
+                
+                dashboardArea.appendChild(box);
+                makeDraggableAndResizable(boxId);
+                
+                // Add event listeners for edit and delete
+                const deleteBtn = box.querySelector('.delete-box');
+                deleteBtn.addEventListener('click', () => {
+                    box.remove();
+                });
+                
+                const editBtn = box.querySelector('.edit-box');
+                editBtn.addEventListener('click', () => {
+                    const textarea = box.querySelector('textarea');
+                    textarea.focus();
+                });
+            });
+
+            // Add list box
+            addListBox.addEventListener('click', () => {
+                boxCount++;
+                const boxId = `box-${boxCount}`;
+                const box = createBox(boxId, 'List Box', `
+                    <ul class="list-disc pl-5 space-y-1">
+                        <li class="flex justify-between items-center">
+                            <span>Item 1</span>
+                            <button class="delete-item text-red-500 hover:text-red-700 text-xs p-1">
+                                <i class="fas fa-times"></i>
+                            </button>
+                        </li>
+                        <li class="flex justify-between items-center">
+                            <span>Item 2</span>
+                            <button class="delete-item text-red-500 hover:text-red-700 text-xs p-1">
+                                <i class="fas fa-times"></i>
+                            </button>
+                        </li>
+                    </ul>
+                `, '250px', '300px');
+                
+                dashboardArea.appendChild(box);
+                makeDraggableAndResizable(boxId);
+                
+                // Add event listeners
+                const deleteBtn = box.querySelector('.delete-box');
+                deleteBtn.addEventListener('click', () => {
+                    box.remove();
+                });
+                
+                const addItemBtn = box.querySelector('.add-list-item');
+                addItemBtn.addEventListener('click', () => {
+                    const list = box.querySelector('ul');
+                    const itemCount = list.querySelectorAll('li').length + 1;
+                    const newItem = document.createElement('li');
+                    newItem.className = 'flex justify-between items-center';
+                    newItem.innerHTML = `
+                        <span>Item ${itemCount}</span>
+                        <button class="delete-item text-red-500 hover:text-red-700 text-xs p-1">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    `;
+                    list.appendChild(newItem);
+                    
+                    // Add delete event to new item
+                    newItem.querySelector('.delete-item').addEventListener('click', function() {
+                        this.parentElement.remove();
+                    });
+                });
+                
+                // Add delete events to existing items
+                box.querySelectorAll('.delete-item').forEach(btn => {
+                    btn.addEventListener('click', function() {
+                        this.parentElement.remove();
+                    });
+                });
+            });
+
+            // Add image box
+            addImageBox.addEventListener('click', () => {
+                boxCount++;
+                const boxId = `box-${boxCount}`;
+                const box = createBox(boxId, 'Image Box', `
+                    <div class="text-center">
+                        <img src="https://source.unsplash.com/random/200x200/?nature,${boxCount}" alt="Random nature image" class="rounded-lg mb-2 mx-auto">
+                        <p class="text-sm text-gray-500">Nature image ${boxCount}</p>
+                    </div>
+                `, '300px', '300px');
+                
+                dashboardArea.appendChild(box);
+                makeDraggableAndResizable(boxId);
+                
+                // Add event listeners
+                const deleteBtn = box.querySelector('.delete-box');
+                deleteBtn.addEventListener('click', () => {
+                    box.remove();
+                });
+                
+                const changeImageBtn = box.querySelector('.change-image');
+                changeImageBtn.addEventListener('click', () => {
+                    const categories = ['nature', 'city', 'animal', 'food', 'travel', 'people'];
+                    const randomCategory = categories[Math.floor(Math.random() * categories.length)];
+                    box.querySelector('img').src = `https://source.unsplash.com/random/200x200/?${randomCategory},${Date.now()}`;
+                    box.querySelector('p').textContent = `${randomCategory} image ${boxCount}`;
+                });
+            });
+
+            // Create box helper function
+            function createBox(id, title, content, width, height) {
+                const box = document.createElement('div');
+                box.id = id;
+                box.className = 'box bg-white dark:bg-gray-800 rounded-lg shadow-md p-4';
+                box.style.width = width;
+                box.style.height = height;
+                
+                box.innerHTML = `
+                    <div class="flex justify-between items-center mb-2 box-handle">
+                        <h3 class="font-semibold">${title} ${boxCount}</h3>
+                        <div class="flex space-x-2">
+                            ${title === 'Text Box' ? 
+                                '<button class="edit-box p-1 text-gray-500 hover:text-gray-700 dark:hover:text-gray-300">' +
+                                '<i class="fas fa-edit"></i></button>' : ''}
+                            ${title === 'List Box' ? 
+                                '<button class="add-list-item p-1 text-gray-500 hover:text-green-500">' +
+                                '<i class="fas fa-plus"></i></button>' : ''}
+                            ${title === 'Image Box' ? 
+                                '<button class="change-image p-1 text-gray-500 hover:text-blue-500">' +
+                                '<i class="fas fa-sync-alt"></i></button>' : ''}
+                            <button class="delete-box p-1 text-gray-500 hover:text-red-500">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="box-content">
+                        ${content}
+                    </div>
+                    <div class="resize-handle resize-handle-tl"></div>
+                    <div class="resize-handle resize-handle-tr"></div>
+                    <div class="resize-handle resize-handle-bl"></div>
+                    <div class="resize-handle resize-handle-br"></div>
+                    <div class="resize-handle resize-handle-t"></div>
+                    <div class="resize-handle resize-handle-r"></div>
+                    <div class="resize-handle resize-handle-b"></div>
+                    <div class="resize-handle resize-handle-l"></div>
+                    <div class="box-overlay"></div>
+                `;
+                
+                // Add right click context menu
+                box.addEventListener('contextmenu', function(e) {
+                    e.preventDefault();
+                    currentContextBox = this;
+                    
+                    // Position the context menu
+                    const x = e.clientX;
+                    const y = e.clientY;
+                    
+                    contextMenu.style.display = 'block';
+                    contextMenu.style.left = `${x}px`;
+                    contextMenu.style.top = `${y}px`;
+                    
+                    // Close menu when clicking elsewhere
+                    document.addEventListener('click', closeContextMenu);
+                });
+                
+                // Click to bring to front
+                box.addEventListener('click', function() {
+                    // Remove active class from all boxes
+                    document.querySelectorAll('.box').forEach(b => {
+                        b.classList.remove('active');
+                    });
+                    
+                    // Add active class to clicked box
+                    this.classList.add('active');
+                });
+                
+                return box;
+            }
+
+            // Context menu items
+            document.getElementById('bring-to-front').addEventListener('click', function() {
+                if (currentContextBox) {
+                    currentContextBox.style.zIndex = '100';
+                    closeContextMenu();
+                }
+            });
+            
+            document.getElementById('send-to-back').addEventListener('click', function() {
+                if (currentContextBox) {
+                    currentContextBox.style.zIndex = '0';
+                    closeContextMenu();
+                }
+            });
+            
+            document.getElementById('make-overlay').addEventListener('click', function() {
+                if (currentContextBox) {
+                    const overlay = currentContextBox.querySelector('.box-overlay');
+                    overlay.classList.toggle('active');
+                    closeContextMenu();
+                }
+            });
+            
+            document.getElementById('duplicate-box').addEventListener('click', function() {
+                if (currentContextBox) {
+                    boxCount++;
+                    const boxId = `box-${boxCount}`;
+                    const clone = currentContextBox.cloneNode(true);
+                    clone.id = boxId;
+                    
+                    // Adjust position slightly
+                    const rect = currentContextBox.getBoundingClientRect();
+                    clone.style.left = `${rect.left + 20}px`;
+                    clone.style.top = `${rect.top + 20}px`;
+                    
+                    dashboardArea.appendChild(clone);
+                    makeDraggableAndResizable(boxId);
+                    
+                    // Update event listeners for the clone
+                    const deleteBtn = clone.querySelector('.delete-box');
+                    deleteBtn.addEventListener('click', () => {
+                        clone.remove();
+                    });
+                    
+                    if (clone.querySelector('.edit-box')) {
+                        const editBtn = clone.querySelector('.edit-box');
+                        editBtn.addEventListener('click', () => {
+                            const textarea = clone.querySelector('textarea');
+                            textarea.focus();
+                        });
+                    }
+                    
+                    if (clone.querySelector('.add-list-item')) {
+                        const addItemBtn = clone.querySelector('.add-list-item');
+                        addItemBtn.addEventListener('click', () => {
+                            const list = clone.querySelector('ul');
+                            const itemCount = list.querySelectorAll('li').length + 1;
+                            const newItem = document.createElement('li');
+                            newItem.className = 'flex justify-between items-center';
+                            newItem.innerHTML = `
+                                <span>Item ${itemCount}</span>
+                                <button class="delete-item text-red-500 hover:text-red-700 text-xs p-1">
+                                    <i class="fas fa-times"></i>
+                                </button>
+                            `;
+                            list.appendChild(newItem);
+                            
+                            newItem.querySelector('.delete-item').addEventListener('click', function() {
+                                this.parentElement.remove();
+                            });
+                        });
+                        
+                        clone.querySelectorAll('.delete-item').forEach(btn => {
+                            btn.addEventListener('click', function() {
+                                this.parentElement.remove();
+                            });
+                        });
+                    }
+                    
+                    if (clone.querySelector('.change-image')) {
+                        const changeImageBtn = clone.querySelector('.change-image');
+                        changeImageBtn.addEventListener('click', () => {
+                            const categories = ['nature', 'city', 'animal', 'food', 'travel', 'people'];
+                            const randomCategory = categories[Math.floor(Math.random() * categories.length)];
+                            clone.querySelector('img').src = `https://source.unsplash.com/random/200x200/?${randomCategory},${Date.now()}`;
+                            clone.querySelector('p').textContent = `${randomCategory} image ${boxCount}`;
+                        });
+                    }
+                    
+                    closeContextMenu();
+                }
+            });
+            
+            document.getElementById('delete-box-context').addEventListener('click', function() {
+                if (currentContextBox) {
+                    currentContextBox.remove();
+                    closeContextMenu();
+                }
+            });
+            
+            function closeContextMenu() {
+                contextMenu.style.display = 'none';
+                document.removeEventListener('click', closeContextMenu);
+            }
+
+            // Clear all boxes
+            clearAll.addEventListener('click', () => {
+                if (confirm('Are you sure you want to clear all boxes?')) {
+                    dashboardArea.innerHTML = '';
+                    boxCount = 0;
+                }
+            });
+
+            // Make boxes draggable and resizable from all edges
+            function makeDraggableAndResizable(elementId) {
+                const element = document.getElementById(elementId);
+                
+                // Set initial position
+                const x = Math.random() * (dashboardArea.offsetWidth - 200);
+                const y = Math.random() * (dashboardArea.offsetHeight - 200);
+                element.style.left = `${x}px`;
+                element.style.top = `${y}px`;
+                
+                interact(element)
+                    .draggable({
+                        inertia: true,
+                        modifiers: [
+                            interact.modifiers.restrictRect({
+                                restriction: 'parent',
+                                endOnly: true
+                            })
+                        ],
+                        autoScroll: true,
+                        listeners: {
+                            start: function(event) {
+                                event.target.classList.add('active');
+                            },
+                            move: dragMoveListener
+                        }
+                    })
+                    .resizable({
+                        edges: { 
+                            top: true,
+                            left: true,
+                            bottom: true,
+                            right: true 
+                        },
+                        listeners: {
+                            move: function (event) {
+                                let { x, y } = event.target.dataset;
+                                
+                                x = (parseFloat(x) || 0);
+                                y = (parseFloat(y) || 0);
+                                
+                                // Update the element's style
+                                event.target.style.width = `${event.rect.width}px`;
+                                event.target.style.height = `${event.rect.height}px`;
+                                
+                                // Translate when resizing from top or left
+                                x += event.deltaRect.left;
+                                y += event.deltaRect.top;
+                                
+                                event.target.style.transform = `translate(${x}px, ${y}px)`;
+                                
+                                event.target.dataset.x = x;
+                                event.target.dataset.y = y;
+                            }
+                        },
+                        modifiers: [
+                            interact.modifiers.restrictEdges({
+                                outer: 'parent'
+                            }),
+                            interact.modifiers.restrictSize({
+                                min: { width: 150, height: 150 }
+                            })
+                        ]
+                    });
+                
+                function dragMoveListener(event) {
+                    const target = event.target;
+                    const x = (parseFloat(target.getAttribute('data-x')) || 0) + event.dx;
+                    const y = (parseFloat(target.getAttribute('data-y')) || 0) + event.dy;
+                    
+                    target.style.transform = `translate(${x}px, ${y}px)`;
+                    target.setAttribute('data-x', x);
+                    target.setAttribute('data-y', y);
+                }
+                
+                window.dragMoveListener = dragMoveListener;
+            }
+            // Corner radius slider
+const cornerRadiusSlider = document.getElementById('corner-radius-slider');
+cornerRadiusSlider.addEventListener('input', (e) => {
+    const radius = e.target.value + 'px';
+    document.querySelectorAll('.box').forEach(box => {
+        box.style.borderRadius = `${radius} 0 0 0`;
+    });
+});
+
+        });
+    </script>
+</body>
+</html>  
